@@ -3,4 +3,18 @@
     <string name="statistics">statistics</string>
     <string name="settings">settings</string>
     <string name="expenses">expenses</string>
+    <string name="add_expense">add expense</string>
+    <string name="label_new_category_name">new category name</string>
+    <string name="label_my_share">my share %</string>
+    <string name="label_ze_share">ze share %</string>
+    <string name="add">add</string>
+    <string name="me">me</string>
+    <string name="ze">ze</string>
+    <string name="attention">Attention</string>
+    <string name="confirm">Confirm</string>
+    <string name="cancel">Cancel</string>
+    <string name="edit">edit</string>
+    <string name="delete">delete</string>
+    <string name="hint_add_category">Category name should not Category name should not be empty or existed. Sum of my share and ze share should be 100%</string>
+    <string name="hint_delete_category">Do you confirm to delete category? Cannot be recovered！</string>
 </resources>

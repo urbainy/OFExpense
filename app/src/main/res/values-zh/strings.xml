@@ -3,4 +3,18 @@
     <string name="statistics">统计</string>
     <string name="settings">设置</string>
     <string name="expenses">花费</string>
+    <string name="add_expense">新增花费</string>
+    <string name="label_new_category_name">新类别名</string>
+    <string name="label_my_share">我承担%</string>
+    <string name="label_ze_share">TA承担%</string>
+    <string name="add">加</string>
+    <string name="me">我</string>
+    <string name="ze">TA</string>
+    <string name="attention">注意</string>
+    <string name="confirm">确定</string>
+    <string name="cancel">取消</string>
+    <string name="edit">编辑</string>
+    <string name="delete">删除</string>
+    <string name="hint_add_category">类别名不能为空也不能与之前的类别名一样。我和TA的承担加起来需要等于100%</string>
+    <string name="hint_delete_category">确认要删除此类别吗？此操作不能恢复！</string>
 </resources>

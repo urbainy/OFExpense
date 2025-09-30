@@ -1,4 +1,4 @@
-package io.oworld.ofexpense
+package io.oworld.ofexpense.ui
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -27,11 +27,15 @@ import androidx.compose.ui.res.vectorResource
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import dagger.hilt.android.AndroidEntryPoint
+import io.oworld.ofexpense.R
+import io.oworld.ofexpense.ui.screen.ExpenseEditScreen
 import io.oworld.ofexpense.ui.screen.MainScreen
-import io.oworld.ofexpense.ui.screen.SettingScreen
+import io.oworld.ofexpense.ui.screen.SettingsScreen
 import io.oworld.ofexpense.ui.screen.StatisticsScreen
 import io.oworld.ofexpense.ui.theme.OFExpenseTheme
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,7 +51,7 @@ class MainActivity : ComponentActivity() {
             }
             OFExpenseTheme {
                 Scaffold(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.Companion.fillMaxSize(),
                     topBar = {
                         TopAppBar(
                             title = { Text(title) },
@@ -59,7 +63,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }) {
                                     Icon(
-                                        imageVector = ImageVector.vectorResource(R.drawable.round_attach_money_24),
+                                        imageVector = ImageVector.Companion.vectorResource(R.drawable.round_attach_money_24),
                                         contentDescription = LocalResources.current.getString(R.string.statistics)
                                     )
                                 }
@@ -70,7 +74,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }) {
                                     Icon(
-                                        imageVector = ImageVector.vectorResource(R.drawable.round_pie_chart_24),
+                                        imageVector = ImageVector.Companion.vectorResource(R.drawable.round_pie_chart_24),
                                         contentDescription = LocalResources.current.getString(R.string.statistics)
                                     )
                                 }
@@ -87,7 +91,8 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         )
-                    }) { innerPadding ->
+                    }
+                ) { innerPadding ->
                     NavHost(
                         navController = navController,
                         startDestination = resources.getString(R.string.expenses)
@@ -99,7 +104,10 @@ class MainActivity : ComponentActivity() {
                             StatisticsScreen(innerPadding)
                         }
                         composable(resources.getString(R.string.settings)) {
-                            SettingScreen(innerPadding)
+                            SettingsScreen(innerPadding)
+                        }
+                        composable(resources.getString(R.string.add_expense)) {
+                            ExpenseEditScreen(innerPadding)
                         }
                     }
                 }
@@ -107,5 +115,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-

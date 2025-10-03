@@ -26,10 +26,7 @@ data class Category(
 @Dao
 interface CategoryDao {
     @Query("SELECT * FROM Category ORDER BY createTime ASC")
-    fun getAll(): List<Category>
-
-    @Query("SELECT * FROM Category ORDER BY createTime ASC")
-    fun getAllFlow(): Flow<List<Category>>
+    fun getAll(): Flow<List<Category>>
 
     @Insert
     suspend fun insert(categories: List<Category>)

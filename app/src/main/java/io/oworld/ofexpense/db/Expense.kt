@@ -43,8 +43,8 @@ interface ExpenseDao {
     @Query("SELECT e.*, c.name AS categoryName FROM Expense e INNER JOIN Category c ON e.categoryId=c.id")
     fun getAllWithCategoryName(): Flow<List<ExpenseWithCategoryName>>
 
-    @Query("SELECT * FROM Expense WHERE Expense.id=:id")
-    fun get(id: String): Flow<Expense>
+    @Query("SELECT e.*, c.name AS categoryName FROM Expense e INNER JOIN Category c ON e.categoryId=c.id WHERE e.id=:id")
+    fun get(id: String): Flow<ExpenseWithCategoryName?>
 
     @Insert
     suspend fun insert(expense: Expense)

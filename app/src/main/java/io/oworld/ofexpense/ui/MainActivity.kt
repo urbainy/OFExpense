@@ -24,13 +24,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.vectorResource
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import dagger.hilt.android.AndroidEntryPoint
 import io.oworld.ofexpense.R
 import io.oworld.ofexpense.ui.screen.ExpenseEditScreen
-import io.oworld.ofexpense.ui.screen.MainScreen
+import io.oworld.ofexpense.ui.screen.ExpensesScreen
 import io.oworld.ofexpense.ui.screen.SettingsScreen
 import io.oworld.ofexpense.ui.screen.StatisticsScreen
 import io.oworld.ofexpense.ui.theme.OFExpenseTheme
@@ -46,7 +48,13 @@ class MainActivity : ComponentActivity() {
             var title by remember { mutableStateOf("") }
             LaunchedEffect(navController, title) {
                 navController.currentBackStackEntryFlow.collect { backStackEntry ->
-                    title = backStackEntry.destination.route.toString()
+                    val route = backStackEntry.destination.route.toString()
+                    val indexOfSlash = route.indexOf('/')
+                    title = if (indexOfSlash == -1) {
+                        route
+                    } else {
+                        route.substring(0, indexOfSlash)
+                    }
                 }
             }
             OFExpenseTheme {
@@ -98,7 +106,7 @@ class MainActivity : ComponentActivity() {
                         startDestination = resources.getString(R.string.expenses)
                     ) {
                         composable(resources.getString(R.string.expenses)) {
-                            MainScreen(innerPadding)
+                            ExpensesScreen(innerPadding, navController = navController)
                         }
                         composable(resources.getString(R.string.statistics)) {
                             StatisticsScreen(innerPadding)
@@ -106,9 +114,11 @@ class MainActivity : ComponentActivity() {
                         composable(resources.getString(R.string.settings)) {
                             SettingsScreen(innerPadding)
                         }
-                        composable(resources.getString(R.string.add_expense)) {
-                            ExpenseEditScreen(innerPadding)
-                        }
+                        composable(
+                            resources.getString(R.string.edit_expense) + "/{expenseId}",
+                            arguments = listOf(
+                                navArgument("expenseId") { type = NavType.StringType }
+                            )) { ExpenseEditScreen(innerPadding, navController) }
                     }
                 }
             }

@@ -191,6 +191,7 @@ fun SettingsScreen(
                                     category.name = categoryName
                                     category.myShare = myShareInt
                                     category.zeShare = zeShareInt
+                                    category.modifyTime = Clock.systemUTC().millis()
                                     viewModel.updateCategory(category)
                                     isEditing = false
                                 } else {
@@ -225,13 +226,15 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.End,
                             modifier = Modifier.width(columnActionWidth)
                         ) {
-                            IconButton(
-                                onClick = { isEditing = true },
-                            ) {
-                                Icon(
-                                    Icons.Rounded.Edit,
-                                    contentDescription = getStr(R.string.edit),
-                                )
+                            if (category.creator == getStr(R.string.me)) {
+                                IconButton(
+                                    onClick = { isEditing = true },
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Edit,
+                                        contentDescription = getStr(R.string.edit),
+                                    )
+                                }
                             }
                         }
                     }
@@ -327,7 +330,7 @@ class SettingsViewModel @Inject constructor(private val appDatabase: AppDatabase
     }
 
     val categoryListStateFlow: StateFlow<List<Category>> =
-        appDatabase.categoryDao().getAllFlow().stateIn(
+        appDatabase.categoryDao().getAll().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
             emptyList()

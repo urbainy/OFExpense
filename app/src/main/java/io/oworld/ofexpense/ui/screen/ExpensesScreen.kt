@@ -1,5 +1,6 @@
 package io.oworld.ofexpense.ui.screen
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -78,6 +79,7 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
+@SuppressLint("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
 @Composable
 fun ExpensesScreen(
@@ -180,13 +182,14 @@ fun ExpensesScreen(
                     modifier = Modifier.clickable(onClick = {
                         val costInt =
                             ((costState.text.toString().toFloatOrNull() ?: 0F) * 100).toInt()
+                        val now = Clock.System.now().toEpochMilliseconds()
                         val newExpense = Expense(
                             categoryId = categoryId,
                             cost = costInt,
                             memo = memoState.text.toString(),
                             creator = resources.getString(R.string.me),
-                            createTime = Clock.System.now().toEpochMilliseconds(),
-                            modifyTime = 0L,
+                            createTime = now,
+                            modifyTime = now,
                         )
                         viewModel.addExpense(newExpense)
                         costState.setTextAndSelectAll("0")
@@ -228,7 +231,7 @@ fun ExpensesScreen(
                     )
                     Text(expense.categoryName, fontSize = 12.sp, modifier = Modifier.width(60.dp))
                     Text(
-                        (expense.cost / 100F).toString(),
+                        text = String.format("%.2f", expense.cost / 100F),
                         fontSize = 12.sp,
                         modifier = Modifier
                             .width(100.dp)
@@ -236,13 +239,23 @@ fun ExpensesScreen(
                         textAlign = TextAlign.End
                     )
                     Text(expense.memo, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                    Icon(
-                        Icons.Rounded.Edit,
-                        contentDescription = getStr(R.string.edit),
-                        Modifier
-                            .size(12.dp)
-                            .clickable(onClick = { navController.navigate(resources.getString(R.string.edit_expense) + "/" + expense.id) })
-                    )
+                    Row(
+                        modifier = Modifier.size(12.dp)
+                    ) {
+                        if (expense.creator == getStr(R.string.me)) {
+                            Icon(
+                                Icons.Rounded.Edit,
+                                contentDescription = getStr(R.string.edit),
+                                Modifier.clickable(onClick = {
+                                    navController.navigate(
+                                        resources.getString(
+                                            R.string.edit_expense
+                                        ) + "/" + expense.id
+                                    )
+                                })
+                            )
+                        }
+                    }
                 }
             }
         }

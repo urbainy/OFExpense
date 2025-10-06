@@ -21,4 +21,13 @@
     <string name="memo">memo</string>
     <string name="save">save</string>
     <string name="hint_modify_time">You modified this record at: %s</string>
+    <string name="sync_as_server">Sync As Server</string>
+    <string name="sync_as_client">Sync As Client</string>
+    <string name="msg_service_registered">"Sync service successfully registered: "</string>
+    <string name="msg_discovery_started">"Sync service discovery started. "</string>
+    <string name="msg_discovery_succeed">Sync service discovery succeed:</string>
+    <string name="msg_service_resolved">"Sync service resolved: "</string>
+    <string name="msg_other_one_saved_db">Other one saved DB.</string>
+    <string name="done">Done</string>
+
 </resources>

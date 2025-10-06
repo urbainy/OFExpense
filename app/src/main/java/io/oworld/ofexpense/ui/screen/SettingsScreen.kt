@@ -292,11 +292,12 @@ fun SettingsScreen(
 
                     if ((myShareInt + zeShareInt == 100) && (newCategoryNameState.text.toString() != "") && !categoryList.any { it.name == newCategoryNameState.text.toString() }
                     ) {
+                        val now = Clock.systemUTC().millis()
                         val newCategory = Category(
                             name = newCategoryNameState.text.toString(),
                             creator = resources.getString(R.string.me),
-                            createTime = Clock.systemUTC().millis(),
-                            modifyTime = 0L,
+                            createTime = now,
+                            modifyTime = now,
                             myShare = myShareInt,
                             zeShare = zeShareInt,
                         )

@@ -7,6 +7,7 @@ import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import java.io.Serializable
 import java.util.UUID
@@ -18,8 +19,8 @@ data class Expense(
     var categoryId: String,
     var cost: Int,
     var memo: String,
-    val creator: String,
-    val createTime: Long,
+    var creator: String,
+    var createTime: Long,
     var modifyTime: Long,
 ) : Serializable
 
@@ -40,8 +41,14 @@ data class ExpenseWithCategoryName(
 
 @Dao
 interface ExpenseDao {
-    @Query("SELECT e.*, c.name AS categoryName FROM Expense e INNER JOIN Category c ON e.categoryId=c.id")
+    @Query("SELECT e.*, c.name AS categoryName FROM Expense e INNER JOIN Category c ON e.categoryId=c.id ORDER BY createTime ASC")
     fun getAllWithCategoryName(): Flow<List<ExpenseWithCategoryName>>
+
+    @Query("SELECT * FROM Expense ORDER BY createTime ASC")
+    fun getAll(): Flow<List<Expense>>
+
+    @Query("SELECT * FROM Expense e, Preference p WHERE e.modifyTime > p.syncDateTime AND e.creator=:me")
+    fun getAllOfMyNew(me: String): List<Expense>
 
     @Query("SELECT e.*, c.name AS categoryName FROM Expense e INNER JOIN Category c ON e.categoryId=c.id WHERE e.id=:id")
     fun get(id: String): Flow<ExpenseWithCategoryName?>
@@ -50,13 +57,16 @@ interface ExpenseDao {
     suspend fun insert(expense: Expense)
 
     @Insert
-    suspend fun insert(expense: List<Expense>)
+    suspend fun insert(expenseList: List<Expense>)
 
     @Update
     suspend fun update(expense: Expense)
 
     @Update
     suspend fun update(expenses: List<Expense>)
+
+    @Upsert
+    suspend fun upsert(expenses: List<Expense>)
 
     @Delete
     suspend fun delete(expense: Expense)

@@ -2,11 +2,9 @@ package io.oworld.ofexpense.db
 
 import androidx.room.Dao
 import androidx.room.Entity
-import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
-import androidx.room.Update
-import kotlinx.coroutines.flow.Flow
+import androidx.room.Upsert
 
 @Entity
 data class Preference(
@@ -17,12 +15,9 @@ data class Preference(
 
 @Dao
 interface PreferenceDao {
-    @Query("SELECT * FROM Preference")
-    fun getAll(): Flow<List<Preference>>
+    @Query("SELECT * FROM Preference WHERE id=1")
+    fun get(): Preference?
 
-    @Insert
-    suspend fun insert(pref: Preference)
-
-    @Update
-    suspend fun update(pref: Preference)
+    @Upsert
+    suspend fun upsert(preference: Preference)
 }

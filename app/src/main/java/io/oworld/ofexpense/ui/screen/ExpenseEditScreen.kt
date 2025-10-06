@@ -128,7 +128,7 @@ fun ExpenseEditScreen(
                 char(':')
                 minute()
             }
-            if (expense!!.modifyTime != 0L) {
+            if (expense!!.createTime != expense!!.modifyTime) {
                 val modifyTimeInstant = Instant.fromEpochMilliseconds(expense!!.modifyTime)
                 val modifyDateTime =
                     modifyTimeInstant.toLocalDateTime(myTimeZone).format(dateTimeFormat)

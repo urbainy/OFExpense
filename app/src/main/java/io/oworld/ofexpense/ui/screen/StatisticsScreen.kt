@@ -1,5 +1,6 @@
 package io.oworld.ofexpense.ui.screen
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
@@ -16,12 +17,21 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.getSelectedDate
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,21 +46,33 @@ import io.oworld.ofexpense.db.AppDatabase
 import io.oworld.ofexpense.db.Category
 import io.oworld.ofexpense.db.Expense
 import io.oworld.ofexpense.db.Preference
+import io.oworld.ofexpense.utils.datePickerToUtcMillis
 import io.oworld.ofexpense.utils.getStr
 import io.oworld.ofexpense.utils.plus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.YearMonth
+import kotlinx.datetime.toJavaLocalDate
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.yearMonth
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.io.Serializable
 import java.net.ServerSocket
 import java.net.Socket
+import java.time.Clock
 import javax.inject.Inject
-import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
+@SuppressLint("DefaultLocale")
+@OptIn(ExperimentalTime::class, ExperimentalMaterial3Api::class)
 @Composable
 fun StatisticsScreen(
     paddingValues: PaddingValues, viewModel: StatisticsViewModel = hiltViewModel(
@@ -65,36 +87,136 @@ fun StatisticsScreen(
     val serverMessageScroll = rememberScrollState(0)
     val clientMessageScroll = rememberScrollState(0)
     val scope = rememberCoroutineScope()
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+    val myTimeZone = TimeZone.currentSystemDefault()
+    val today =
+        Instant.fromEpochMilliseconds(Clock.systemUTC().millis()).toLocalDateTime(myTimeZone).date
+    val firstDayLastMonth =
+        YearMonth(today.yearMonth.year, today.yearMonth.month.ordinal).firstDay
+    val lastDayLastMonth =
+        YearMonth(today.yearMonth.year, today.yearMonth.month.ordinal).lastDay
+    val startDatePickerState =
+        rememberDatePickerState(initialSelectedDate = firstDayLastMonth.toJavaLocalDate())
+    val endDatePickerState =
+        rememberDatePickerState(initialSelectedDate = lastDayLastMonth.toJavaLocalDate())
     Column(Modifier.padding(paddingValues + PaddingValues(12.dp))) {
         Row(Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f)) {
-                Button(onClick = { viewModel.syncAsServer() }) {
+                Button(onClick = { viewModel.syncAsServer() }, Modifier.fillMaxWidth()) {
                     Text(getStr(R.string.sync_as_server), fontSize = 13.sp)
                 }
                 Text(
                     messageOfServer,
                     fontSize = 12.sp,
                     modifier = Modifier
-                        .height(400.dp)
+                        .height(250.dp)
+                        .fillMaxWidth()
                         .verticalScroll(serverMessageScroll)
                 )
             }
             Spacer(Modifier.width(6.dp))
             Column(Modifier.weight(1f)) {
-                Button(onClick = { viewModel.syncAsClient() }) {
+                Button(onClick = { viewModel.syncAsClient() }, Modifier.fillMaxWidth()) {
                     Text(getStr(R.string.sync_as_client), fontSize = 13.sp)
                 }
                 Text(
                     messageOfClient,
                     fontSize = 12.sp,
                     modifier = Modifier
-                        .height(400.dp)
+                        .height(250.dp)
+                        .fillMaxWidth()
                         .verticalScroll(clientMessageScroll)
                 )
             }
         }
+        Row(Modifier.fillMaxWidth()) {
+            Button(
+                onClick = { showStartDatePicker = !showStartDatePicker },
+                modifier = Modifier
+                    .weight(1f)
+            ) {
+                Text(
+                    startDatePickerState.getSelectedDate().toString()
+                )
+            }
+            if (showStartDatePicker) {
+                DatePickerDialog(
+                    onDismissRequest = {
+                        showStartDatePicker = false
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showStartDatePicker = false
+                        }) {
+                            Text(getStr(R.string.confirm))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            showStartDatePicker = false
+                        }) {
+                            Text(getStr(R.string.cancel))
+                        }
+                    }
+                ) {
+                    DatePicker(state = startDatePickerState)
+                }
+            }
+            Spacer(Modifier.width(6.dp))
+            Button(
+                onClick = { showEndDatePicker = !showEndDatePicker },
+                modifier = Modifier
+                    .weight(1f)
+            ) {
+                Text(
+                    endDatePickerState.getSelectedDate().toString()
+                )
+            }
+            if (showEndDatePicker) {
+                DatePickerDialog(
+                    onDismissRequest = {
+                        showEndDatePicker = false
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            viewModel.updateAccountPeriodPreference(
+                                startDatePickerState.selectedDateMillis!!,
+                                endDatePickerState.selectedDateMillis!!
+                            )
+                            showEndDatePicker = false
+                        }) {
+                            Text(getStr(R.string.confirm))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            showEndDatePicker = false
+                        }) {
+                            Text(getStr(R.string.cancel))
+                        }
+                    }
+                ) {
+                    DatePicker(state = endDatePickerState)
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        val meToZe by viewModel.meToZeStateFlow.collectAsState()
+        Text(
+            text = getStr(R.string.settlement) + String.format("%.2f", (meToZe ?: 0) / 100F),
+            fontSize = 20.sp
+        )
     }
-    LaunchedEffect(scope) { viewModel.initPreference() }
+    LaunchedEffect(scope) {
+        val accountPeriodStart = datePickerToUtcMillis(startDatePickerState.selectedDateMillis!!)
+        val accountPeriodEnd =
+            datePickerToUtcMillis(endDatePickerState.selectedDateMillis!!) + 86400000 - 1
+        viewModel.initOrUpdateAccountPeriodPreference(
+            accountPeriodStart,
+            accountPeriodEnd
+        )
+    }
 }
 
 @HiltViewModel
@@ -108,30 +230,58 @@ class StatisticsViewModel @Inject constructor(
     val messageOfClient = _messageOfClient.asStateFlow()
     private val resources = appContext.resources
 
-    fun initPreference() = viewModelScope.launch(Dispatchers.IO) {
-        if (appDatabase.preferenceDao().get() == null) {
+    fun initOrUpdateAccountPeriodPreference(accountPeriodStart: Long, accountPeriodEnd: Long) =
+        viewModelScope.launch(Dispatchers.IO) {
+            if (appDatabase.preferenceDao().get() == null) {
+                appDatabase.preferenceDao().upsert(
+                    Preference(
+                        id = 1,
+                        syncDateTime = 0L,
+                        accountPeriodStart,
+                        accountPeriodEnd,
+                    )
+                )
+            } else {
+                val preference = appDatabase.preferenceDao().get()
+                appDatabase.preferenceDao().upsert(
+                    preference!!.copy(
+                        accountPeriodStart = accountPeriodStart,
+                        accountPeriodEnd = accountPeriodEnd
+                    )
+                )
+            }
+        }
+
+    @OptIn(ExperimentalTime::class)
+    fun updateAccountPeriodPreference(startDatePickerMillis: Long, endDatePickerMillis: Long) =
+        viewModelScope.launch(Dispatchers.IO) {
+            val accountPeriodStart = datePickerToUtcMillis(startDatePickerMillis)
+            val accountPeriodEnd =
+                datePickerToUtcMillis(endDatePickerMillis) + 86400000 - 1
+            val preference = appDatabase.preferenceDao().get()
             appDatabase.preferenceDao().upsert(
-                Preference(
-                    id = 1,
-                    syncDateTime = 0L
+                preference!!.copy(
+                    accountPeriodStart = accountPeriodStart,
+                    accountPeriodEnd = accountPeriodEnd
                 )
             )
         }
-    }
 
     @OptIn(ExperimentalTime::class)
-    private fun saveNewDb(categoryList: List<Category>, expenseList: List<Expense>) =
-        viewModelScope.launch {
-            categoryList.forEach { category -> category.creator = resources.getString(R.string.ze) }
+    private fun saveZeDb(categoryList: List<Category>, expenseList: List<Expense>) =
+        viewModelScope.launch(Dispatchers.IO) {
+            categoryList.forEach { category ->
+                val temp = category.myShare
+                category.myShare = category.zeShare
+                category.zeShare = temp
+                category.creator = resources.getString(R.string.ze)
+            }
             expenseList.forEach { expense -> expense.creator = resources.getString(R.string.ze) }
             appDatabase.categoryDao().upsert(categoryList)
             appDatabase.expenseDao().upsert(expenseList)
-            appDatabase.preferenceDao().upsert(
-                Preference(
-                    id = 1,
-                    syncDateTime = Clock.System.now().toEpochMilliseconds()
-                )
-            )
+            val preference = appDatabase.preferenceDao().get()
+            appDatabase.preferenceDao()
+                .upsert(preference!!.copy(syncDateTime = Clock.systemUTC().millis()))
         }
 
     private val nsdManager = appContext.getSystemService(Context.NSD_SERVICE) as NsdManager
@@ -166,7 +316,7 @@ class StatisticsViewModel @Inject constructor(
         objectOutputStream.writeObject(sendDb)
         val receivedSyncInfo = objectInputStream.readObject() as SyncInfo
         if (receivedSyncInfo.message == "DB") {
-            saveNewDb(receivedSyncInfo.categoryList, receivedSyncInfo.expenseList)
+            saveZeDb(receivedSyncInfo.categoryList, receivedSyncInfo.expenseList)
             val sendDone = SyncInfo(
                 message = "DONE",
                 categoryList = emptyList(),
@@ -184,18 +334,19 @@ class StatisticsViewModel @Inject constructor(
 
         @RequiresExtension(extension = Build.VERSION_CODES.TIRAMISU, version = 17)
         override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-            _messageOfClient.value =
-                _messageOfClient.value.plus(resources.getString(R.string.msg_service_resolved))
-                    .plus(serviceInfo).plus('\n')
             if (serviceInfo.serviceName.contains("SyncExpense") && serviceInfo.hostAddresses.isNotEmpty()) {
                 val ipAddress = serviceInfo.hostAddresses[0].hostAddress
                 val port = serviceInfo.port
+                _messageOfClient.value =
+                    _messageOfClient.value.plus(resources.getString(R.string.msg_service_resolved))
+                        .plus(serviceInfo.serviceName).plus('\n').plus(ipAddress).plus('\n')
+                        .plus(port.toString()).plus('\n')
                 val clientSocket = Socket(ipAddress, port)
                 val objectOutputStream = ObjectOutputStream(clientSocket.outputStream)
                 val objectInputStream = ObjectInputStream(clientSocket.inputStream)
                 var receivedSyncInfo = objectInputStream.readObject() as SyncInfo
                 if (receivedSyncInfo.message == "DB") {
-                    saveNewDb(receivedSyncInfo.categoryList, receivedSyncInfo.expenseList)
+                    saveZeDb(receivedSyncInfo.categoryList, receivedSyncInfo.expenseList)
                     val sendDb = SyncInfo(
                         message = "DB",
                         categoryList = appDatabase.categoryDao()
@@ -249,6 +400,15 @@ class StatisticsViewModel @Inject constructor(
     fun cleanup() {
         nsdManager.stopServiceDiscovery(discoveryListener)
     }
+
+    val meToZeStateFlow: StateFlow<Int?> =
+        appDatabase.expenseDao()
+            .meToZe(me = resources.getString(R.string.me))
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                null
+            )
 }
 
 data class SyncInfo(

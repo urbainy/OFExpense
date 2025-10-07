@@ -68,9 +68,9 @@ import kotlinx.datetime.format
 import kotlinx.datetime.format.char
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import java.time.Clock
 import java.util.Locale
 import javax.inject.Inject
-import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -112,9 +112,9 @@ fun ExpenseEditScreen(
             )
             val dateFormat = LocalDateTime.Format {
                 year()
-                char('/')
+                char('-')
                 monthNumber()
-                char('/')
+                char('-')
                 day()
             }
             val dateTimeFormat = LocalDateTime.Format {
@@ -277,7 +277,7 @@ fun ExpenseEditScreen(
                         .toLocalDateTime(TimeZone.UTC).toInstant(myTimeZone).toEpochMilliseconds()
                 val editedCreateTime =
                     datePickerToUtcMillis + timePickerState.hour * 3600L * 1000L + timePickerState.minute * 60L * 1000L
-                val modifyTime = Clock.System.now().toEpochMilliseconds()
+                val modifyTime = Clock.systemUTC().millis()
                 val editedExpense = expense!!.toExpense().copy(
                     categoryId = categoryId,
                     cost = ((costState.text.toString().toFloatOrNull() ?: 0F) * 100).toInt(),

@@ -4,6 +4,11 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.LayoutDirection
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 operator fun PaddingValues.plus(other: PaddingValues): PaddingValues {
     return PaddingValues(
@@ -21,4 +26,11 @@ operator fun PaddingValues.plus(other: PaddingValues): PaddingValues {
 @Composable
 fun getStr(resourceId: Int): String {
     return LocalResources.current.getString(resourceId)
+}
+
+@OptIn(ExperimentalTime::class)
+fun datePickerToUtcMillis(datePickerMillis: Long): Long {
+    val myTimeZone = TimeZone.currentSystemDefault()
+    val instant = Instant.fromEpochMilliseconds(datePickerMillis)
+    return instant.toLocalDateTime(TimeZone.UTC).toInstant(myTimeZone).toEpochMilliseconds()
 }

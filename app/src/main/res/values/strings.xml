@@ -29,5 +29,6 @@
     <string name="msg_service_resolved">"Sync service resolved: "</string>
     <string name="msg_other_one_saved_db">Other one saved DB.</string>
     <string name="done">Done</string>
+    <string name="settlement">Settlement, I give to ze:</string>
 
 </resources>

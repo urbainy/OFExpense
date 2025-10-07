@@ -29,4 +29,5 @@
     <string name="msg_service_resolved">"确认同步服务: "</string>
     <string name="msg_other_one_saved_db">对方已更新数据库。</string>
     <string name="done">完成</string>
+    <string name="settlement">结算，我需要给TA：</string>
 </resources>

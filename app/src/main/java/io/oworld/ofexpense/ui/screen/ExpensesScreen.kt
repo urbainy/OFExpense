@@ -74,8 +74,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
 import kotlinx.datetime.format.char
 import kotlinx.datetime.toLocalDateTime
+import java.time.Clock
 import javax.inject.Inject
-import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -182,7 +182,7 @@ fun ExpensesScreen(
                     modifier = Modifier.clickable(onClick = {
                         val costInt =
                             ((costState.text.toString().toFloatOrNull() ?: 0F) * 100).toInt()
-                        val now = Clock.System.now().toEpochMilliseconds()
+                        val now = Clock.systemUTC().millis()
                         val newExpense = Expense(
                             categoryId = categoryId,
                             cost = costInt,

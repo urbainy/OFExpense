@@ -10,7 +10,9 @@ import androidx.room.Upsert
 data class Preference(
     @PrimaryKey(autoGenerate = true)
     val id: Int,
-    val syncDateTime: Long
+    val syncDateTime: Long,
+    val accountPeriodStart: Long,
+    val accountPeriodEnd: Long
 )
 
 @Dao

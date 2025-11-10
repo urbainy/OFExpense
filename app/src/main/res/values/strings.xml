@@ -28,7 +28,11 @@
     <string name="msg_discovery_succeed">Sync service discovery succeed:</string>
     <string name="msg_service_resolved">"Sync service resolved: "</string>
     <string name="msg_other_one_saved_db">Other one saved DB.</string>
+    <string name="msg_self_service">Cannot connect service of yourself.</string>
+    <string name="msg_dump_db">All DB record will be dumped to [Documents] folder with three files: [category.csv], [expense.csv] and [preference.csv].</string>
+    <string name="msg_load_csv">From [Documents] folder, three files: [category.csv], [expense.csv] and [preference.csv], data will be loaded. Existing data will be overwritten.</string>
     <string name="done">Done</string>
     <string name="settlement">Settlement, I give to ze:</string>
-
+    <string name="dump">Dump DB To CSV File</string>
+    <string name="load">Load CSV Content To DB</string>
 </resources>

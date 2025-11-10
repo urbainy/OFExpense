@@ -2,6 +2,7 @@ package io.oworld.ofexpense.ui.screen
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.net.ConnectivityManager
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Build
@@ -64,6 +65,7 @@ import kotlinx.datetime.yearMonth
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.io.Serializable
+import java.net.Inet4Address
 import java.net.ServerSocket
 import java.net.Socket
 import java.time.Clock
@@ -71,6 +73,7 @@ import javax.inject.Inject
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
+@RequiresExtension(extension = Build.VERSION_CODES.TIRAMISU, version = 7)
 @SuppressLint("DefaultLocale")
 @OptIn(ExperimentalTime::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -89,17 +92,10 @@ fun StatisticsScreen(
     val scope = rememberCoroutineScope()
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
-    val myTimeZone = TimeZone.currentSystemDefault()
-    val today =
-        Instant.fromEpochMilliseconds(Clock.systemUTC().millis()).toLocalDateTime(myTimeZone).date
-    val firstDayLastMonth =
-        YearMonth(today.yearMonth.year, today.yearMonth.month.ordinal).firstDay
-    val lastDayLastMonth =
-        YearMonth(today.yearMonth.year, today.yearMonth.month.ordinal).lastDay
     val startDatePickerState =
-        rememberDatePickerState(initialSelectedDate = firstDayLastMonth.toJavaLocalDate())
+        rememberDatePickerState(initialSelectedDate = viewModel.firstDayLastMonth.toJavaLocalDate())
     val endDatePickerState =
-        rememberDatePickerState(initialSelectedDate = lastDayLastMonth.toJavaLocalDate())
+        rememberDatePickerState(initialSelectedDate = viewModel.lastDayLastMonth.toJavaLocalDate())
     Column(Modifier.padding(paddingValues + PaddingValues(12.dp))) {
         Row(Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f)) {
@@ -147,6 +143,10 @@ fun StatisticsScreen(
                     },
                     confirmButton = {
                         TextButton(onClick = {
+                            viewModel.updateAccountPeriodPreference(
+                                startDatePickerState.selectedDateMillis!!,
+                                endDatePickerState.selectedDateMillis!!
+                            )
                             showStartDatePicker = false
                         }) {
                             Text(getStr(R.string.confirm))
@@ -209,13 +209,7 @@ fun StatisticsScreen(
         )
     }
     LaunchedEffect(scope) {
-        val accountPeriodStart = datePickerToUtcMillis(startDatePickerState.selectedDateMillis!!)
-        val accountPeriodEnd =
-            datePickerToUtcMillis(endDatePickerState.selectedDateMillis!!) + 86400000 - 1
-        viewModel.initOrUpdateAccountPeriodPreference(
-            accountPeriodStart,
-            accountPeriodEnd
-        )
+        viewModel.initPreference()
     }
 }
 
@@ -229,24 +223,34 @@ class StatisticsViewModel @Inject constructor(
     private val _messageOfClient = MutableStateFlow("")
     val messageOfClient = _messageOfClient.asStateFlow()
     private val resources = appContext.resources
+    private val myTimeZone = TimeZone.currentSystemDefault()
 
-    fun initOrUpdateAccountPeriodPreference(accountPeriodStart: Long, accountPeriodEnd: Long) =
+    @OptIn(ExperimentalTime::class)
+    private val today =
+        Instant.fromEpochMilliseconds(Clock.systemUTC().millis()).toLocalDateTime(myTimeZone).date
+    val firstDayLastMonth =
+        YearMonth(today.yearMonth.year, today.yearMonth.month.ordinal).firstDay
+    val lastDayLastMonth =
+        YearMonth(today.yearMonth.year, today.yearMonth.month.ordinal).lastDay
+    private val firstDayLastMonthMillis = firstDayLastMonth.toEpochDays() * 24 * 60 * 60 * 1000
+    private val lastDayLastMonthMillis = lastDayLastMonth.toEpochDays() * 24 * 60 * 60 * 1000
+    fun initPreference() =
         viewModelScope.launch(Dispatchers.IO) {
             if (appDatabase.preferenceDao().get() == null) {
                 appDatabase.preferenceDao().upsert(
                     Preference(
                         id = 1,
                         syncDateTime = 0L,
-                        accountPeriodStart,
-                        accountPeriodEnd,
+                        accountPeriodStart = firstDayLastMonthMillis,
+                        accountPeriodEnd = lastDayLastMonthMillis + 86400000 - 1
                     )
                 )
             } else {
                 val preference = appDatabase.preferenceDao().get()
                 appDatabase.preferenceDao().upsert(
                     preference!!.copy(
-                        accountPeriodStart = accountPeriodStart,
-                        accountPeriodEnd = accountPeriodEnd
+                        accountPeriodStart = firstDayLastMonthMillis,
+                        accountPeriodEnd = lastDayLastMonthMillis + 86400000 - 1
                     )
                 )
             }
@@ -274,15 +278,32 @@ class StatisticsViewModel @Inject constructor(
                 val temp = category.myShare
                 category.myShare = category.zeShare
                 category.zeShare = temp
-                category.creator = resources.getString(R.string.ze)
+                if (category.creator == resources.getString(R.string.ze)) {
+                    category.creator = resources.getString(R.string.me)
+                } else if (category.creator == resources.getString(R.string.me)) {
+                    category.creator = resources.getString(R.string.ze)
+                }
             }
-            expenseList.forEach { expense -> expense.creator = resources.getString(R.string.ze) }
+            expenseList.forEach { expense ->
+                if (expense.creator == resources.getString(R.string.ze)) {
+                    expense.creator = resources.getString(R.string.me)
+                } else if (expense.creator == resources.getString(R.string.me)) {
+                    expense.creator = resources.getString(R.string.ze)
+                }
+            }
             appDatabase.categoryDao().upsert(categoryList)
             appDatabase.expenseDao().upsert(expenseList)
-            val preference = appDatabase.preferenceDao().get()
-            appDatabase.preferenceDao()
-                .upsert(preference!!.copy(syncDateTime = Clock.systemUTC().millis()))
         }
+
+    private fun updateSyncTime() = viewModelScope.launch(Dispatchers.IO) {
+        val preference = appDatabase.preferenceDao().get()
+        appDatabase.preferenceDao()
+            .upsert(preference!!.copy(syncDateTime = Clock.systemUTC().millis()))
+    }
+
+    private val connectivityManager =
+        appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
 
     private val nsdManager = appContext.getSystemService(Context.NSD_SERVICE) as NsdManager
     fun syncAsServer() = viewModelScope.launch(Dispatchers.IO) {
@@ -307,24 +328,37 @@ class StatisticsViewModel @Inject constructor(
         val realServerSocket = serverSocket.accept()
         val objectOutputStream = ObjectOutputStream(realServerSocket.outputStream)
         val objectInputStream = ObjectInputStream(realServerSocket.inputStream)
+
+        //1.Server sends sync timestamp expecting new records.
+        val lastSyncMillis = SyncInfo(
+            message = "LAST_SYNC_MILLIS",
+            lastSyncMillis = appDatabase.preferenceDao().get()!!.syncDateTime,
+            categoryList = emptyList(),
+            expenseList = emptyList(),
+        )
+        objectOutputStream.writeObject(lastSyncMillis)
+
+        //3. Server receives client's db, save it.
+        var receivedSyncInfo = objectInputStream.readObject() as SyncInfo
+        saveZeDb(receivedSyncInfo.categoryList, receivedSyncInfo.expenseList)
+
+        //4. Server sends db.
         val sendDb = SyncInfo(
             message = "DB",
+            lastSyncMillis = 0,
             categoryList = appDatabase.categoryDao()
-                .getAllOfMyNew(resources.getString(R.string.me)),
-            expenseList = appDatabase.expenseDao().getAllOfMyNew(resources.getString(R.string.me)),
+                .getAllNew(receivedSyncInfo.lastSyncMillis),
+            expenseList = appDatabase.expenseDao()
+                .getAllNew(receivedSyncInfo.lastSyncMillis),
         )
         objectOutputStream.writeObject(sendDb)
-        val receivedSyncInfo = objectInputStream.readObject() as SyncInfo
-        if (receivedSyncInfo.message == "DB") {
-            saveZeDb(receivedSyncInfo.categoryList, receivedSyncInfo.expenseList)
-            val sendDone = SyncInfo(
-                message = "DONE",
-                categoryList = emptyList(),
-                expenseList = emptyList()
-            )
-            objectOutputStream.writeObject(sendDone)
+
+        //7. Server receives done, update sync timestamp.
+        receivedSyncInfo = objectInputStream.readObject() as SyncInfo
+        if (receivedSyncInfo.message == "DONE") {
+            updateSyncTime()
             _messageOfServer.value =
-                _messageOfServer.value.plus(resources.getString(R.string.done))
+                _messageOfServer.value.plus(resources.getString(R.string.done)).plus('\n')
             nsdManager.unregisterService(registrationListener)
         }
     }
@@ -334,33 +368,56 @@ class StatisticsViewModel @Inject constructor(
 
         @RequiresExtension(extension = Build.VERSION_CODES.TIRAMISU, version = 17)
         override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-            if (serviceInfo.serviceName.contains("SyncExpense") && serviceInfo.hostAddresses.isNotEmpty()) {
-                val ipAddress = serviceInfo.hostAddresses[0].hostAddress
+            val linkProperties =
+                connectivityManager.getLinkProperties(connectivityManager.activeNetwork)
+            val myIpAddress =
+                linkProperties?.linkAddresses?.find { linkAddress -> linkAddress.address is Inet4Address }?.address
+            if (serviceInfo.serviceName.contains("SyncExpense")) {
+                val ipAddress = serviceInfo.host
                 val port = serviceInfo.port
-                _messageOfClient.value =
-                    _messageOfClient.value.plus(resources.getString(R.string.msg_service_resolved))
-                        .plus(serviceInfo.serviceName).plus('\n').plus(ipAddress).plus('\n')
-                        .plus(port.toString()).plus('\n')
-                val clientSocket = Socket(ipAddress, port)
-                val objectOutputStream = ObjectOutputStream(clientSocket.outputStream)
-                val objectInputStream = ObjectInputStream(clientSocket.inputStream)
-                var receivedSyncInfo = objectInputStream.readObject() as SyncInfo
-                if (receivedSyncInfo.message == "DB") {
-                    saveZeDb(receivedSyncInfo.categoryList, receivedSyncInfo.expenseList)
-                    val sendDb = SyncInfo(
-                        message = "DB",
-                        categoryList = appDatabase.categoryDao()
-                            .getAllOfMyNew(resources.getString(R.string.me)),
-                        expenseList = appDatabase.expenseDao()
-                            .getAllOfMyNew(resources.getString(R.string.me)),
-                    )
-                    objectOutputStream.writeObject(sendDb)
-                    receivedSyncInfo = objectInputStream.readObject() as SyncInfo
-                    if (receivedSyncInfo.message == "DONE") {
-                        _messageOfClient.value =
-                            _messageOfClient.value.plus(resources.getString(R.string.done))
-                        cleanup()
+                if (ipAddress == myIpAddress) {
+                    _messageOfClient.value =
+                        _messageOfClient.value.plus(resources.getString(R.string.msg_self_service))
+                } else {
+                    _messageOfClient.value =
+                        _messageOfClient.value.plus(resources.getString(R.string.msg_service_resolved))
+                            .plus(serviceInfo.serviceName).plus('\n').plus(ipAddress).plus('\n')
+                            .plus(port.toString()).plus('\n')
+                    val clientSocket = Socket(ipAddress, port)
+                    val objectOutputStream = ObjectOutputStream(clientSocket.outputStream)
+                    val objectInputStream = ObjectInputStream(clientSocket.inputStream)
+
+                    //2. Client sends all new records after server's last sync timestamp, including both sides.
+                    var receivedSyncInfo = objectInputStream.readObject() as SyncInfo
+                    if (receivedSyncInfo.message == "LAST_SYNC_MILLIS") {
+                        val zeSyncMillis = receivedSyncInfo.lastSyncMillis
+                        val db = SyncInfo(
+                            message = "DB",
+                            lastSyncMillis = appDatabase.preferenceDao().get()!!.syncDateTime,
+                            categoryList = appDatabase.categoryDao().getAllNew(zeSyncMillis),
+                            expenseList = appDatabase.expenseDao().getAllNew(zeSyncMillis),
+                        )
+                        objectOutputStream.writeObject(db)
                     }
+
+                    //5. Client receives server's db, save it.
+                    receivedSyncInfo = objectInputStream.readObject() as SyncInfo
+                    if (receivedSyncInfo.message == "DB") {
+                        saveZeDb(receivedSyncInfo.categoryList, receivedSyncInfo.expenseList)
+                    }
+
+                    //6. Client sends DONE to server and update sync timestamp.
+                    val done = SyncInfo(
+                        message = "DONE",
+                        lastSyncMillis = 0,
+                        categoryList = emptyList(),
+                        expenseList = emptyList(),
+                    )
+                    objectOutputStream.writeObject(done)
+                    updateSyncTime()
+                    _messageOfClient.value =
+                        _messageOfClient.value.plus(resources.getString(R.string.done)).plus('\n')
+                    stopDiscoveryListener()
                 }
             }
         }
@@ -397,7 +454,7 @@ class StatisticsViewModel @Inject constructor(
     }
 
     @RequiresExtension(extension = Build.VERSION_CODES.TIRAMISU, version = 7)
-    fun cleanup() {
+    fun stopDiscoveryListener() {
         nsdManager.stopServiceDiscovery(discoveryListener)
     }
 
@@ -413,6 +470,7 @@ class StatisticsViewModel @Inject constructor(
 
 data class SyncInfo(
     val message: String,
+    val lastSyncMillis: Long,
     val categoryList: List<Category>,
     val expenseList: List<Expense>,
 ) : Serializable

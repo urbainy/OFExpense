@@ -28,6 +28,11 @@
     <string name="msg_discovery_succeed">"成功发现同步服务: "</string>
     <string name="msg_service_resolved">"确认同步服务: "</string>
     <string name="msg_other_one_saved_db">对方已更新数据库。</string>
+    <string name="msg_self_service">不能连接自己的服务。</string>
+    <string name="msg_dump_db">数据库将被导出到[Documents]文件夹的三个文件: [category.csv], [expense.csv]和[preference.csv]。</string>
+    <string name="msg_load_csv">数据将从[Documents]文件夹的三个文件[category.csv], [expense.csv]和[preference.csv]中导入至数据库，数据库中已存在的数据将被覆盖。</string>
     <string name="done">完成</string>
     <string name="settlement">结算，我需要给TA：</string>
+    <string name="dump">保存整个数据库到CSV文件</string>
+    <string name="load">加载CSV记录到数据库</string>
 </resources>

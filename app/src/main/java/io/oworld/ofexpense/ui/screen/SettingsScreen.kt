@@ -1,12 +1,15 @@
 package io.oworld.ofexpense.ui.screen
 
 import android.app.AlertDialog
+import android.os.Environment
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,8 +28,11 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -49,16 +55,22 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
+import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.oworld.ofexpense.R
 import io.oworld.ofexpense.db.AppDatabase
 import io.oworld.ofexpense.db.Category
+import io.oworld.ofexpense.db.Expense
+import io.oworld.ofexpense.db.Preference
 import io.oworld.ofexpense.utils.getStr
 import io.oworld.ofexpense.utils.plus
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
 import java.time.Clock
 import javax.inject.Inject
 
@@ -75,13 +87,16 @@ fun SettingsScreen(
     val columnMyShareWeight = 0.25f
     val columnZeShareWeight = 0.25f
     val columnActionWidth = 80.dp
+    var showDumpDialog by remember { mutableStateOf(false) }
+    var showLoadDialog by remember { mutableStateOf(false) }
     val resources = LocalResources.current
+
     val addCategoryDialogBuilder: AlertDialog.Builder = AlertDialog.Builder(LocalContext.current)
     addCategoryDialogBuilder.setTitle(getStr(R.string.attention))
         .setMessage(getStr(R.string.hint_add_category))
         .setPositiveButton(getStr(R.string.confirm)) { _, _ -> }
         .setNegativeButton(getStr(R.string.cancel)) { _, _ -> }
-    val modifyCategoryDialog = addCategoryDialogBuilder.create()
+    val addCategoryDialog = addCategoryDialogBuilder.create()
     Column(Modifier.padding(paddingValues + PaddingValues(12.dp))) {
         Row(modifier = Modifier.fillMaxWidth()) {
             Text(
@@ -195,7 +210,7 @@ fun SettingsScreen(
                                     viewModel.updateCategory(category)
                                     isEditing = false
                                 } else {
-                                    modifyCategoryDialog.show()
+                                    addCategoryDialog.show()
                                 }
                             }) {
                                 Icon(
@@ -227,14 +242,11 @@ fun SettingsScreen(
                             modifier = Modifier.width(columnActionWidth)
                         ) {
                             if (category.creator == getStr(R.string.me)) {
-                                IconButton(
-                                    onClick = { isEditing = true },
-                                ) {
-                                    Icon(
-                                        Icons.Rounded.Edit,
-                                        contentDescription = getStr(R.string.edit),
-                                    )
-                                }
+                                Icon(
+                                    Icons.Rounded.Edit,
+                                    contentDescription = getStr(R.string.edit),
+                                    Modifier.clickable(onClick = { isEditing = true })
+                                )
                             }
                         }
                     }
@@ -286,38 +298,108 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.End,
                 modifier = Modifier.width(columnActionWidth)
             ) {
-                IconButton(onClick = {
-                    val myShareInt = newCategoryMyShareState.text.toString().toIntOrNull() ?: 0
-                    val zeShareInt = newCategoryZeShareState.text.toString().toIntOrNull() ?: 0
+                Icon(
+                    Icons.Rounded.AddCircle,
+                    contentDescription = getStr(R.string.add),
+                    Modifier.clickable(onClick = {
+                        val myShareInt = newCategoryMyShareState.text.toString().toIntOrNull() ?: 0
+                        val zeShareInt = newCategoryZeShareState.text.toString().toIntOrNull() ?: 0
 
-                    if ((myShareInt + zeShareInt == 100) && (newCategoryNameState.text.toString() != "") && !categoryList.any { it.name == newCategoryNameState.text.toString() }
-                    ) {
-                        val now = Clock.systemUTC().millis()
-                        val newCategory = Category(
-                            name = newCategoryNameState.text.toString(),
-                            creator = resources.getString(R.string.me),
-                            createTime = now,
-                            modifyTime = now,
-                            myShare = myShareInt,
-                            zeShare = zeShareInt,
-                        )
-                        viewModel.addCategory(newCategory)
-                        newCategoryNameState.clearText()
-                        newCategoryMyShareState.setTextAndPlaceCursorAtEnd("50")
-                        newCategoryZeShareState.setTextAndPlaceCursorAtEnd("50")
-                    } else {
-                        modifyCategoryDialog.show()
-                    }
-                }) {
-                    Icon(Icons.Rounded.AddCircle, getStr(R.string.add))
-                }
+                        if ((myShareInt + zeShareInt == 100) && (newCategoryNameState.text.toString() != "") && !categoryList.any { it.name == newCategoryNameState.text.toString() }
+                        ) {
+                            val now = Clock.systemUTC().millis()
+                            val newCategory = Category(
+                                name = newCategoryNameState.text.toString(),
+                                creator = resources.getString(R.string.me),
+                                createTime = now,
+                                modifyTime = now,
+                                myShare = myShareInt,
+                                zeShare = zeShareInt,
+                            )
+                            viewModel.addCategory(newCategory)
+                            newCategoryNameState.clearText()
+                            newCategoryMyShareState.setTextAndPlaceCursorAtEnd("50")
+                            newCategoryZeShareState.setTextAndPlaceCursorAtEnd("50")
+                        } else {
+                            addCategoryDialog.show()
+                        }
+                    })
+                )
             }
+        }
+        Spacer(Modifier.height(20.dp))
+        if (showDumpDialog) {
+            AlertDialog(
+                title = { Text(text = resources.getString(R.string.dump)) },
+                text = { Text(text = resources.getString(R.string.msg_dump_db)) },
+                onDismissRequest = { showDumpDialog = false },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.dump()
+                            showDumpDialog = false
+                        }
+                    ) {
+                        Text(resources.getString(R.string.confirm))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDumpDialog = false }) {
+                        Text(resources.getString(R.string.cancel))
+                    }
+                }
+            )
+        }
+        Button(
+            onClick = { showDumpDialog = true },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+        ) {
+            Text(resources.getString(R.string.dump))
+        }
+        if (showLoadDialog) {
+            AlertDialog(
+                title = { Text(text = resources.getString(R.string.load)) },
+                text = { Text(text = resources.getString(R.string.msg_load_csv)) },
+                onDismissRequest = { showLoadDialog = false },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.load()
+                            showLoadDialog = false
+                        }
+                    ) {
+                        Text(resources.getString(R.string.confirm))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showLoadDialog = false }) {
+                        Text(resources.getString(R.string.cancel))
+                    }
+                }
+            )
+        }
+        Button(
+            onClick = { showLoadDialog = true },
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+        ) {
+            Text(resources.getString(R.string.load))
         }
     }
 }
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(private val appDatabase: AppDatabase) : ViewModel() {
+    val categoryListStateFlow: StateFlow<List<Category>> =
+        appDatabase.categoryDao().getAll().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
+
     fun addCategory(category: Category) = viewModelScope.launch {
         appDatabase.categoryDao().insert(category)
     }
@@ -330,10 +412,100 @@ class SettingsViewModel @Inject constructor(private val appDatabase: AppDatabase
         appDatabase.categoryDao().delete(category)
     }
 
-    val categoryListStateFlow: StateFlow<List<Category>> =
-        appDatabase.categoryDao().getAll().stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
-            emptyList()
+    private val expenseFile = File(
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+        "expense.csv"
+    )
+    private val categoryFile =
+        File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+            "category.csv"
         )
+    private val preferenceFile = File(
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+        "preference.csv"
+    )
+
+    fun dump() = viewModelScope.launch(Dispatchers.IO) {
+        val categoryList = appDatabase.categoryDao().getAllNonFlow()
+        val categorySerializedList = categoryList.map { category ->
+            listOf(
+                category.id,
+                category.name,
+                category.creator,
+                category.createTime.toString(),
+                category.modifyTime.toString(),
+                category.myShare.toString(),
+                category.zeShare.toString(),
+            )
+        }
+        val expenseList = appDatabase.expenseDao().getAllWithCategoryNameNoneFlow()
+        val expenseSerializedList = expenseList.map { expense ->
+            listOf(
+                expense.id,
+                expense.categoryId,
+                expense.categoryName,
+                expense.cost.toString(),
+                expense.memo,
+                expense.creator,
+                expense.createTime.toString(),
+                expense.modifyTime.toString(),
+            )
+        }
+        val preferenceList = listOf(appDatabase.preferenceDao().get())
+        val preferenceSerializedList = preferenceList.map { preference ->
+            val preference = preference ?: Preference(
+                id = 1,
+                syncDateTime = 0,
+                accountPeriodStart = 0,
+                accountPeriodEnd = 0,
+            )
+            listOf(
+                preference.id.toString(),
+                preference.syncDateTime.toString(),
+                preference.accountPeriodStart.toString(),
+                preference.accountPeriodEnd.toString()
+            )
+        }
+        csvWriter().writeAll(categorySerializedList, categoryFile)
+        csvWriter().writeAll(expenseSerializedList, expenseFile)
+        csvWriter().writeAll(preferenceSerializedList, preferenceFile)
+    }
+
+    fun load() = viewModelScope.launch(Dispatchers.IO) {
+        val categorySerializedList = csvReader().readAll(categoryFile)
+        val expenseSerializedList = csvReader().readAll(expenseFile)
+        val preferenceSerializedList = csvReader().readAll(preferenceFile)
+        val categoryList = categorySerializedList.map {
+            Category(
+                id = it[0],
+                name = it[1],
+                creator = it[2],
+                createTime = it[3].toLong(),
+                modifyTime = it[4].toLong(),
+                myShare = it[5].toInt(),
+                zeShare = it[6].toInt(),
+            )
+        }
+        val expenseList = expenseSerializedList.map {
+            Expense(
+                id = it[0],
+                categoryId = it[1],
+                cost = it[3].toInt(),
+                memo = it[4],
+                creator = it[5],
+                createTime = it[6].toLong(),
+                modifyTime = it[7].toLong(),
+            )
+        }
+        val preference = Preference(
+            id = preferenceSerializedList[0][0].toInt(),
+            syncDateTime = preferenceSerializedList[0][1].toLong(),
+            accountPeriodStart = preferenceSerializedList[0][2].toLong(),
+            accountPeriodEnd = preferenceSerializedList[0][3].toLong()
+        )
+        appDatabase.categoryDao().upsert(categoryList)
+        appDatabase.expenseDao().upsert(expenseList)
+        appDatabase.preferenceDao().upsert(preference)
+    }
 }

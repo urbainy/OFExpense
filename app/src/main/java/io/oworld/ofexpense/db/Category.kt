@@ -29,8 +29,14 @@ interface CategoryDao {
     @Query("SELECT * FROM Category ORDER BY createTime ASC")
     fun getAll(): Flow<List<Category>>
 
-    @Query("SELECT * FROM Category c, Preference p WHERE c.modifyTime > p.syncDateTime AND c.creator=:me")
-    fun getAllOfMyNew(me: String): List<Category>
+    @Query("SELECT * FROM Category ORDER BY createTime ASC")
+    fun getAllNonFlow(): List<Category>
+
+    @Query("SELECT * FROM Category WHERE Category.modifyTime > :zeSyncMillis")
+    fun getAllNew(zeSyncMillis: Long): List<Category>
+
+    @Query("SELECT * FROM Category WHERE Category.modifyTime > :zeSyncMillis AND Category.creator=:me")
+    fun getAllOfMyNew(me: String, zeSyncMillis: Long): List<Category>
 
     @Insert
     suspend fun insert(categories: List<Category>)

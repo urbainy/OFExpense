@@ -1,9 +1,14 @@
 package io.oworld.ofexpense.ui
 
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresExtension
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Settings
@@ -37,8 +42,10 @@ import io.oworld.ofexpense.ui.screen.SettingsScreen
 import io.oworld.ofexpense.ui.screen.StatisticsScreen
 import io.oworld.ofexpense.ui.theme.OFExpenseTheme
 
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @RequiresExtension(extension = Build.VERSION_CODES.TIRAMISU, version = 7)
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,6 +53,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             val navController = rememberNavController()
             var title by remember { mutableStateOf("") }
+            if (!Environment.isExternalStorageManager()) {
+                val getPermission = Intent()
+                getPermission.action = Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION
+                startActivity(getPermission)
+            }
             LaunchedEffect(navController, title) {
                 navController.currentBackStackEntryFlow.collect { backStackEntry ->
                     val route = backStackEntry.destination.route.toString()

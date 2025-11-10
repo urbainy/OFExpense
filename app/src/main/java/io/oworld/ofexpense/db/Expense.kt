@@ -47,8 +47,14 @@ interface ExpenseDao {
     @Query("SELECT * FROM Expense ORDER BY createTime ASC")
     fun getAll(): Flow<List<Expense>>
 
-    @Query("SELECT * FROM Expense e, Preference p WHERE e.modifyTime > p.syncDateTime AND e.creator=:me")
-    fun getAllOfMyNew(me: String): List<Expense>
+    @Query("SELECT e.*, c.name AS categoryName FROM Expense e INNER JOIN Category c ON e.categoryId=c.id ORDER BY createTime ASC")
+    fun getAllWithCategoryNameNoneFlow(): List<ExpenseWithCategoryName>
+
+    @Query("SELECT * FROM Expense WHERE Expense.modifyTime > :zeSyncMillis")
+    fun getAllNew(zeSyncMillis: Long): List<Expense>
+
+    @Query("SELECT * FROM Expense WHERE Expense.modifyTime > :zeSyncMillis AND Expense.creator=:me")
+    fun getAllOfMyNew(me: String, zeSyncMillis: Long): List<Expense>
 
     @Query("SELECT e.*, c.name AS categoryName FROM Expense e INNER JOIN Category c ON e.categoryId=c.id WHERE e.id=:id")
     fun get(id: String): Flow<ExpenseWithCategoryName?>

@@ -1,7 +1,6 @@
 package io.oworld.ofexpense.db
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Entity
 import androidx.room.Insert
 import androidx.room.PrimaryKey
@@ -22,6 +21,7 @@ data class Expense(
     var creator: String,
     var createTime: Long,
     var modifyTime: Long,
+    var deleted: Boolean
 ) : Serializable
 
 data class ExpenseWithCategoryName(
@@ -33,9 +33,10 @@ data class ExpenseWithCategoryName(
     val creator: String,
     val createTime: Long,
     var modifyTime: Long,
+    var deleted: Boolean
 ) {
     fun toExpense(): Expense {
-        return Expense(id, categoryId, cost, memo, creator, createTime, modifyTime)
+        return Expense(id, categoryId, cost, memo, creator, createTime, modifyTime, deleted)
     }
 }
 
@@ -44,11 +45,11 @@ interface ExpenseDao {
     @Query("SELECT e.*, c.name AS categoryName FROM Expense e INNER JOIN Category c ON e.categoryId=c.id ORDER BY createTime ASC")
     fun getAllWithCategoryName(): Flow<List<ExpenseWithCategoryName>>
 
-    @Query("SELECT * FROM Expense ORDER BY createTime ASC")
-    fun getAll(): Flow<List<Expense>>
-
     @Query("SELECT e.*, c.name AS categoryName FROM Expense e INNER JOIN Category c ON e.categoryId=c.id ORDER BY createTime ASC")
     fun getAllWithCategoryNameNoneFlow(): List<ExpenseWithCategoryName>
+
+    @Query("SELECT e.*, c.name AS categoryName FROM Expense e INNER JOIN Category c ON e.categoryId=c.id WHERE e.deleted!=true ORDER BY createTime ASC")
+    fun getAllValidWithCategoryName(): Flow<List<ExpenseWithCategoryName>>
 
     @Query("SELECT * FROM Expense WHERE Expense.modifyTime > :zeSyncMillis")
     fun getAllNew(zeSyncMillis: Long): List<Expense>
@@ -74,9 +75,6 @@ interface ExpenseDao {
     @Upsert
     suspend fun upsert(expenses: List<Expense>)
 
-    @Delete
-    suspend fun delete(expense: Expense)
-
-    @Query("SELECT (SELECT SUM(cost*myShare/100) FROM Expense e INNER JOIN Category c ON e.categoryId=c.id WHERE e.createTime>(SELECT accountPeriodStart FROM Preference WHERE id=1) AND e.createTime<(SELECT accountPeriodEnd FROM Preference WHERE id=1)) - (SELECT SUM(cost) FROM Expense, Preference WHERE creator=:me AND createTime>accountPeriodStart AND createTime<accountPeriodEnd)")
-    fun meToZe(me: String): Flow<Int?>
+    @Query("SELECT (SELECT IFNULL(SUM(cost*myShare/100), 0) FROM Expense e INNER JOIN Category c ON e.categoryId=c.id WHERE e.createTime>(SELECT accountPeriodStart FROM Preference WHERE id=1) AND e.createTime<(SELECT accountPeriodEnd FROM Preference WHERE id=1) AND e.deleted!=true) - (SELECT IFNULL(SUM(cost), 0) FROM Expense, Preference WHERE creator=:me AND createTime>accountPeriodStart AND createTime<accountPeriodEnd AND deleted!=true)")
+    fun meToZe(me: String): Flow<Int>
 }

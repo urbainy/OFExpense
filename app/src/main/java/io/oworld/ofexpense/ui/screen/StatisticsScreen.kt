@@ -204,7 +204,7 @@ fun StatisticsScreen(
         Spacer(Modifier.height(12.dp))
         val meToZe by viewModel.meToZeStateFlow.collectAsState()
         Text(
-            text = getStr(R.string.settlement) + String.format("%.2f", (meToZe ?: 0) / 100F),
+            text = getStr(R.string.settlement) + String.format("%.2f", meToZe / 100F),
             fontSize = 20.sp
         )
     }
@@ -458,13 +458,13 @@ class StatisticsViewModel @Inject constructor(
         nsdManager.stopServiceDiscovery(discoveryListener)
     }
 
-    val meToZeStateFlow: StateFlow<Int?> =
+    val meToZeStateFlow: StateFlow<Int> =
         appDatabase.expenseDao()
             .meToZe(me = resources.getString(R.string.me))
             .stateIn(
                 viewModelScope,
                 SharingStarted.WhileSubscribed(5000),
-                null
+                0
             )
 }
 

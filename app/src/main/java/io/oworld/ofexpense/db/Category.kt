@@ -1,7 +1,6 @@
 package io.oworld.ofexpense.db
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Entity
 import androidx.room.Insert
 import androidx.room.PrimaryKey
@@ -22,12 +21,13 @@ data class Category(
     var modifyTime: Long,
     var myShare: Int,
     var zeShare: Int,
+    var deleted: Boolean
 ) : Serializable
 
 @Dao
 interface CategoryDao {
-    @Query("SELECT * FROM Category ORDER BY createTime ASC")
-    fun getAll(): Flow<List<Category>>
+    @Query("SELECT * FROM Category WHERE Category.deleted!=true ORDER BY createTime ASC")
+    fun getAllValid(): Flow<List<Category>>
 
     @Query("SELECT * FROM Category ORDER BY createTime ASC")
     fun getAllNonFlow(): List<Category>
@@ -52,10 +52,4 @@ interface CategoryDao {
 
     @Upsert
     suspend fun upsert(categories: List<Category>)
-
-    @Delete
-    suspend fun delete(category: Category)
-
-    @Delete
-    suspend fun delete(categories: List<Category>)
 }

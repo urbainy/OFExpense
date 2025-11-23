@@ -190,6 +190,7 @@ fun ExpensesScreen(
                             creator = resources.getString(R.string.me),
                             createTime = now,
                             modifyTime = now,
+                            deleted = false,
                         )
                         viewModel.addExpense(newExpense)
                         costState.setTextAndSelectAll("0")
@@ -199,7 +200,7 @@ fun ExpensesScreen(
                 )
             }
         }
-        LazyColumn() {
+        LazyColumn {
             itemsIndexed(items = expenseList) { index, expense ->
                 val myTimeZone = TimeZone.currentSystemDefault()
                 val createTimeInstant = Instant.fromEpochMilliseconds(expense.createTime)
@@ -229,7 +230,7 @@ fun ExpensesScreen(
                         fontFamily = FontFamily.Monospace,
                         modifier = Modifier.padding(end = 6.dp)
                     )
-                    Text(expense.categoryName, fontSize = 12.sp, modifier = Modifier.width(60.dp))
+                    Text(expense.categoryName, fontSize = 12.sp, modifier = Modifier.width(65.dp))
                     Text(
                         text = String.format("%.2f", expense.cost / 100F),
                         fontSize = 12.sp,
@@ -269,13 +270,13 @@ class ExpensesViewModel @Inject constructor(private val appDatabase: AppDatabase
     }
 
     val categoryListStateFlow: StateFlow<List<Category>> =
-        appDatabase.categoryDao().getAll().stateIn(
+        appDatabase.categoryDao().getAllValid().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
             emptyList()
         )
     val expenseListStateFlow: StateFlow<List<ExpenseWithCategoryName>> =
-        appDatabase.expenseDao().getAllWithCategoryName().stateIn(
+        appDatabase.expenseDao().getAllValidWithCategoryName().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
             emptyList()

@@ -349,7 +349,7 @@ class ExpenseEditViewModel @Inject constructor(
         )
 
     val categoryListStateFlow: StateFlow<List<Category>> =
-        appDatabase.categoryDao().getAll().stateIn(
+        appDatabase.categoryDao().getAllValid().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
             emptyList()
@@ -360,7 +360,9 @@ class ExpenseEditViewModel @Inject constructor(
     }
 
     fun delete(expense: Expense) = viewModelScope.launch {
-        appDatabase.expenseDao().delete(expense)
+        val now = Clock.systemUTC().millis()
+        val deletedExpense = expense.copy(deleted = true, modifyTime = now)
+        appDatabase.expenseDao().update(deletedExpense)
     }
 }
 

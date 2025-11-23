@@ -315,6 +315,7 @@ fun SettingsScreen(
                                 modifyTime = now,
                                 myShare = myShareInt,
                                 zeShare = zeShareInt,
+                                deleted = false
                             )
                             viewModel.addCategory(newCategory)
                             newCategoryNameState.clearText()
@@ -394,7 +395,7 @@ fun SettingsScreen(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(private val appDatabase: AppDatabase) : ViewModel() {
     val categoryListStateFlow: StateFlow<List<Category>> =
-        appDatabase.categoryDao().getAll().stateIn(
+        appDatabase.categoryDao().getAllValid().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
             emptyList()
@@ -409,18 +410,19 @@ class SettingsViewModel @Inject constructor(private val appDatabase: AppDatabase
     }
 
     fun deleteCategory(category: Category) = viewModelScope.launch {
-        appDatabase.categoryDao().delete(category)
+        val now = Clock.systemUTC().millis()
+        val deletedCategory = category.copy(deleted = true, modifyTime = now)
+        appDatabase.categoryDao().update(deletedCategory)
     }
 
     private val expenseFile = File(
         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
         "expense.csv"
     )
-    private val categoryFile =
-        File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
-            "category.csv"
-        )
+    private val categoryFile = File(
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+        "category.csv"
+    )
     private val preferenceFile = File(
         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
         "preference.csv"
@@ -437,6 +439,7 @@ class SettingsViewModel @Inject constructor(private val appDatabase: AppDatabase
                 category.modifyTime.toString(),
                 category.myShare.toString(),
                 category.zeShare.toString(),
+                category.deleted.toString(),
             )
         }
         val expenseList = appDatabase.expenseDao().getAllWithCategoryNameNoneFlow()
@@ -450,6 +453,7 @@ class SettingsViewModel @Inject constructor(private val appDatabase: AppDatabase
                 expense.creator,
                 expense.createTime.toString(),
                 expense.modifyTime.toString(),
+                expense.deleted.toString()
             )
         }
         val preferenceList = listOf(appDatabase.preferenceDao().get())
@@ -485,6 +489,7 @@ class SettingsViewModel @Inject constructor(private val appDatabase: AppDatabase
                 modifyTime = it[4].toLong(),
                 myShare = it[5].toInt(),
                 zeShare = it[6].toInt(),
+                deleted = it[7].toBoolean(),
             )
         }
         val expenseList = expenseSerializedList.map {
@@ -496,6 +501,7 @@ class SettingsViewModel @Inject constructor(private val appDatabase: AppDatabase
                 creator = it[5],
                 createTime = it[6].toLong(),
                 modifyTime = it[7].toLong(),
+                deleted = it[8].toBoolean(),
             )
         }
         val preference = Preference(

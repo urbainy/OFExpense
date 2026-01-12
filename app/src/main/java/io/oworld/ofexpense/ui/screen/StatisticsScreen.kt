@@ -202,6 +202,11 @@ fun StatisticsScreen(
             }
         }
         Spacer(Modifier.height(12.dp))
+        val myRealExpense by viewModel.myRealExpenseFlow.collectAsState()
+        Text(
+            text = getStr(R.string.my_real_expense) + String.format("%.2f", myRealExpense / 100F),
+            fontSize = 20.sp
+        )
         val meToZe by viewModel.meToZeStateFlow.collectAsState()
         Text(
             text = getStr(R.string.settlement) + String.format("%.2f", meToZe / 100F),
@@ -228,10 +233,20 @@ class StatisticsViewModel @Inject constructor(
     @OptIn(ExperimentalTime::class)
     private val today =
         Instant.fromEpochMilliseconds(Clock.systemUTC().millis()).toLocalDateTime(myTimeZone).date
+    val lastMonth = if (today.yearMonth.month.ordinal == 0) {
+        12
+    } else {
+        today.yearMonth.month.ordinal
+    }
+    val yearOfLastMonth = if (today.yearMonth.month.ordinal == 0) {
+        today.yearMonth.year - 1
+    } else {
+        today.yearMonth.year
+    }
     val firstDayLastMonth =
-        YearMonth(today.yearMonth.year, today.yearMonth.month.ordinal).firstDay
+        YearMonth(yearOfLastMonth, lastMonth).firstDay
     val lastDayLastMonth =
-        YearMonth(today.yearMonth.year, today.yearMonth.month.ordinal).lastDay
+        YearMonth(yearOfLastMonth, lastMonth).lastDay
     private val firstDayLastMonthMillis = firstDayLastMonth.toEpochDays() * 24 * 60 * 60 * 1000
     private val lastDayLastMonthMillis = lastDayLastMonth.toEpochDays() * 24 * 60 * 60 * 1000
     fun initPreference() =
@@ -459,13 +474,13 @@ class StatisticsViewModel @Inject constructor(
     }
 
     val meToZeStateFlow: StateFlow<Int> =
-        appDatabase.expenseDao()
-            .meToZe(me = resources.getString(R.string.me))
-            .stateIn(
-                viewModelScope,
-                SharingStarted.WhileSubscribed(5000),
-                0
-            )
+        appDatabase.expenseDao().meToZe(me = resources.getString(R.string.me)).stateIn(
+            viewModelScope, SharingStarted.WhileSubscribed(5000), 0
+        )
+    val myRealExpenseFlow: StateFlow<Int> =
+        appDatabase.expenseDao().myRealExpense(me = resources.getString(R.string.me)).stateIn(
+            viewModelScope, SharingStarted.WhileSubscribed(5000), 0
+        )
 }
 
 data class SyncInfo(

@@ -48,7 +48,7 @@ interface ExpenseDao {
     @Query("SELECT e.*, c.name AS categoryName FROM Expense e INNER JOIN Category c ON e.categoryId=c.id ORDER BY createTime ASC")
     fun getAllWithCategoryNameNoneFlow(): List<ExpenseWithCategoryName>
 
-    @Query("SELECT e.*, c.name AS categoryName FROM Expense e INNER JOIN Category c ON e.categoryId=c.id WHERE e.deleted!=true ORDER BY createTime ASC")
+    @Query("SELECT e.*, c.name AS categoryName FROM Expense e INNER JOIN Category c ON e.categoryId=c.id WHERE e.deleted!=true ORDER BY createTime DESC")
     fun getAllValidWithCategoryName(): Flow<List<ExpenseWithCategoryName>>
 
     @Query("SELECT * FROM Expense WHERE Expense.modifyTime > :zeSyncMillis")
@@ -77,4 +77,7 @@ interface ExpenseDao {
 
     @Query("SELECT (SELECT IFNULL(SUM(cost*myShare/100), 0) FROM Expense e INNER JOIN Category c ON e.categoryId=c.id WHERE e.createTime>(SELECT accountPeriodStart FROM Preference WHERE id=1) AND e.createTime<(SELECT accountPeriodEnd FROM Preference WHERE id=1) AND e.deleted!=true) - (SELECT IFNULL(SUM(cost), 0) FROM Expense, Preference WHERE creator=:me AND createTime>accountPeriodStart AND createTime<accountPeriodEnd AND deleted!=true)")
     fun meToZe(me: String): Flow<Int>
+
+    @Query("SELECT IFNULL(SUM(cost), 0) FROM Expense, Preference WHERE creator=:me AND createTime>accountPeriodStart AND createTime<accountPeriodEnd AND deleted!=true")
+    fun myRealExpense(me: String): Flow<Int>
 }

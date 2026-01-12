@@ -201,7 +201,7 @@ fun ExpensesScreen(
             }
         }
         LazyColumn {
-            itemsIndexed(items = expenseList) { index, expense ->
+            itemsIndexed(items = expenseList) { _, expense ->
                 val myTimeZone = TimeZone.currentSystemDefault()
                 val createTimeInstant = Instant.fromEpochMilliseconds(expense.createTime)
                 val dateTimeFormat = LocalDateTime.Format {
@@ -215,7 +215,7 @@ fun ExpensesScreen(
                 }
                 val readableCreateTime =
                     createTimeInstant.toLocalDateTime(myTimeZone).format(dateTimeFormat)
-                val rowColor = if (index % 2 == 1) {
+                val rowColor = if (expense.creator == resources.getString(R.string.me)) {
                     MaterialTheme.colorScheme.primaryContainer
                 } else {
                     MaterialTheme.colorScheme.background

@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Upsert
+import kotlinx.coroutines.flow.Flow
 
 @Entity
 data class Preference(
@@ -19,6 +20,9 @@ data class Preference(
 interface PreferenceDao {
     @Query("SELECT * FROM Preference WHERE id=1")
     fun get(): Preference?
+
+    @Query("SELECT * FROM Preference WHERE id=1")
+    fun getFlow(): Flow<Preference?>
 
     @Upsert
     suspend fun upsert(preference: Preference)

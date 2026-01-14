@@ -40,6 +40,11 @@ data class ExpenseWithCategoryName(
     }
 }
 
+data class CategorySummary(
+    val categoryName: String,
+    val summary: Int,
+)
+
 @Dao
 interface ExpenseDao {
     @Query("SELECT e.*, c.name AS categoryName FROM Expense e INNER JOIN Category c ON e.categoryId=c.id ORDER BY createTime ASC")
@@ -78,6 +83,9 @@ interface ExpenseDao {
     @Query("SELECT (SELECT IFNULL(SUM(cost*myShare/100), 0) FROM Expense e INNER JOIN Category c ON e.categoryId=c.id WHERE e.createTime>(SELECT accountPeriodStart FROM Preference WHERE id=1) AND e.createTime<(SELECT accountPeriodEnd FROM Preference WHERE id=1) AND e.deleted!=true) - (SELECT IFNULL(SUM(cost), 0) FROM Expense, Preference WHERE creator=:me AND createTime>accountPeriodStart AND createTime<accountPeriodEnd AND deleted!=true)")
     fun meToZe(me: String): Flow<Int>
 
-    @Query("SELECT IFNULL(SUM(cost), 0) FROM Expense, Preference WHERE creator=:me AND createTime>accountPeriodStart AND createTime<accountPeriodEnd AND deleted!=true")
-    fun myRealExpense(me: String): Flow<Int>
+    @Query("SELECT IFNULL(SUM(cost), 0) FROM Expense, Preference WHERE creator=:who AND createTime>accountPeriodStart AND createTime<accountPeriodEnd AND deleted!=true")
+    fun realExpense(who: String): Flow<Int>
+
+    @Query("SELECT c.name AS categoryName, IFNULL(SUM(cost), 0) AS summary FROM Expense e INNER JOIN Category c ON e.categoryId=c.id WHERE e.createTime>(SELECT accountPeriodStart FROM Preference WHERE id=1) AND e.createTime<(SELECT accountPeriodEnd FROM Preference WHERE id=1) AND e.deleted!=true AND e.creator=:who GROUP BY c.name")
+    fun categorySummary(who: String): Flow<List<CategorySummary>>
 }

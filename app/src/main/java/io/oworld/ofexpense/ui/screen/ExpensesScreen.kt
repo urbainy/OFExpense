@@ -36,10 +36,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,17 +65,21 @@ import io.oworld.ofexpense.db.AppDatabase
 import io.oworld.ofexpense.db.Category
 import io.oworld.ofexpense.db.Expense
 import io.oworld.ofexpense.db.ExpenseWithCategoryName
+import io.oworld.ofexpense.db.Preference
 import io.oworld.ofexpense.utils.getStr
 import io.oworld.ofexpense.utils.plus
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.YearMonth
 import kotlinx.datetime.format
 import kotlinx.datetime.format.char
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.yearMonth
 import java.time.Clock
 import javax.inject.Inject
 import kotlin.time.ExperimentalTime
@@ -261,6 +267,9 @@ fun ExpensesScreen(
             }
         }
     }
+    LaunchedEffect(rememberCoroutineScope()) {
+        viewModel.initPreference()
+    }
 }
 
 @HiltViewModel
@@ -281,4 +290,47 @@ class ExpensesViewModel @Inject constructor(private val appDatabase: AppDatabase
             SharingStarted.WhileSubscribed(5000),
             emptyList()
         )
+
+    @OptIn(ExperimentalTime::class)
+    fun initPreference() =
+        viewModelScope.launch(Dispatchers.IO) {
+            val myTimeZone = TimeZone.currentSystemDefault()
+            val today =
+                Instant.fromEpochMilliseconds(Clock.systemUTC().millis())
+                    .toLocalDateTime(myTimeZone).date
+            val lastMonth = if (today.yearMonth.month.ordinal == 0) {
+                12
+            } else {
+                today.yearMonth.month.ordinal
+            }
+            val yearOfLastMonth = if (today.yearMonth.month.ordinal == 0) {
+                today.yearMonth.year - 1
+            } else {
+                today.yearMonth.year
+            }
+            val firstDayLastMonth =
+                YearMonth(yearOfLastMonth, lastMonth).firstDay
+            val lastDayLastMonth =
+                YearMonth(yearOfLastMonth, lastMonth).lastDay
+            val firstDayLastMonthMillis = firstDayLastMonth.toEpochDays() * 24 * 60 * 60 * 1000
+            val lastDayLastMonthMillis = lastDayLastMonth.toEpochDays() * 24 * 60 * 60 * 1000
+            if (appDatabase.preferenceDao().get() == null) {
+                appDatabase.preferenceDao().upsert(
+                    Preference(
+                        id = 1,
+                        syncDateTime = 0L,
+                        accountPeriodStart = firstDayLastMonthMillis,
+                        accountPeriodEnd = lastDayLastMonthMillis + 86400000 - 1
+                    )
+                )
+            } else {
+                val preference = appDatabase.preferenceDao().get()
+                appDatabase.preferenceDao().upsert(
+                    preference!!.copy(
+                        accountPeriodStart = firstDayLastMonthMillis,
+                        accountPeriodEnd = lastDayLastMonthMillis + 86400000 - 1
+                    )
+                )
+            }
+        }
 }

@@ -1,6 +1,8 @@
 package io.oworld.ofexpense.ui
 
+import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -40,15 +42,19 @@ import io.oworld.ofexpense.ui.screen.ExpenseEditScreen
 import io.oworld.ofexpense.ui.screen.ExpensesScreen
 import io.oworld.ofexpense.ui.screen.SettingsScreen
 import io.oworld.ofexpense.ui.screen.StatisticsScreen
+import io.oworld.ofexpense.ui.screen.SynchronizeScreen
 import io.oworld.ofexpense.ui.theme.OFExpenseTheme
+import kotlin.time.ExperimentalTime
 
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @SuppressLint("SourceLockedOrientationActivity")
     @RequiresExtension(extension = Build.VERSION_CODES.TIRAMISU, version = 7)
-    @OptIn(ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         enableEdgeToEdge()
         setContent {
             val navController = rememberNavController()
@@ -65,13 +71,13 @@ class MainActivity : ComponentActivity() {
                     title = if (indexOfSlash == -1) {
                         route
                     } else {
-                        route.substring(0, indexOfSlash)
+                        route.take(indexOfSlash)
                     }
                 }
             }
             OFExpenseTheme {
                 Scaffold(
-                    modifier = Modifier.Companion.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                     topBar = {
                         TopAppBar(
                             title = { Text(title) },
@@ -83,8 +89,19 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }) {
                                     Icon(
-                                        imageVector = ImageVector.Companion.vectorResource(R.drawable.round_attach_money_24),
+                                        imageVector = ImageVector.vectorResource(R.drawable.round_attach_money_24),
                                         contentDescription = LocalResources.current.getString(R.string.statistics)
+                                    )
+                                }
+                                IconButton(onClick = {
+                                    val myRoute = resources.getString(R.string.synchronize)
+                                    if (navController.currentDestination?.route != myRoute) {
+                                        navController.navigate(myRoute)
+                                    }
+                                }) {
+                                    Icon(
+                                        imageVector = ImageVector.vectorResource(R.drawable.round_sync_alt_24),
+                                        contentDescription = LocalResources.current.getString(R.string.synchronize)
                                     )
                                 }
                                 IconButton(onClick = {
@@ -94,7 +111,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }) {
                                     Icon(
-                                        imageVector = ImageVector.Companion.vectorResource(R.drawable.round_pie_chart_24),
+                                        imageVector = ImageVector.vectorResource(R.drawable.round_pie_chart_24),
                                         contentDescription = LocalResources.current.getString(R.string.statistics)
                                     )
                                 }
@@ -119,6 +136,9 @@ class MainActivity : ComponentActivity() {
                     ) {
                         composable(resources.getString(R.string.expenses)) {
                             ExpensesScreen(innerPadding, navController = navController)
+                        }
+                        composable(resources.getString(R.string.synchronize)) {
+                            SynchronizeScreen(innerPadding)
                         }
                         composable(resources.getString(R.string.statistics)) {
                             StatisticsScreen(innerPadding)

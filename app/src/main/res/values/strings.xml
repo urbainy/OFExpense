@@ -33,7 +33,9 @@
     <string name="msg_load_csv">From [Documents] folder, three files: [category.csv], [expense.csv] and [preference.csv], data will be loaded. Existing data will be overwritten.</string>
     <string name="done">Done</string>
     <string name="my_real_expense">My real expense in this period:</string>
+    <string name="ze_real_expense">Ze real expense in this period:</string>
     <string name="settlement">Settlement, I give to ze:</string>
     <string name="dump">Dump DB To CSV File</string>
     <string name="load">Load CSV Content To DB</string>
+    <string name="synchronize">Synchronize</string>
 </resources>
